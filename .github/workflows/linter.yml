@@ -13,6 +13,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: actions/node-js@v1
+      - uses: actions/custom-actions@v1
       - name: Run linter
         run: make lint
