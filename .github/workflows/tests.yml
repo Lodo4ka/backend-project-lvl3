@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: custom-actions/node-js@v1
+      - name: Test & coverage
+        uses: paambaati/codeclimate-action@v2.7.5
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CODE_CLIMATE_ID }}
+        with:
+          coverageCommand: make test-coverage
+          debug: true
