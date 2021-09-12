@@ -4,10 +4,20 @@
   "description": "[![Actions Status](https://github.com/Lodo4ka/backend-project-lvl3/workflows/hexlet-check/badge.svg)](https://github.com/Lodo4ka/backend-project-lvl3/actions)",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --bail",
+    "test-watch": "jest --watch",
+    "test-coverage": "jest --collectCoverage"
+  },
+  "type": "module",
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testRunner": "jest-circus/runner"
   },
   "repository": {
     "type": "git",
+    "test": "jest --bail",
+    "test-watch": "jest --watch",
     "url": "git+https://github.com/Lodo4ka/backend-project-lvl3.git"
   },
   "author": "",
@@ -15,5 +25,14 @@
   "bugs": {
     "url": "https://github.com/Lodo4ka/backend-project-lvl3/issues"
   },
-  "homepage": "https://github.com/Lodo4ka/backend-project-lvl3#readme"
+  "homepage": "https://github.com/Lodo4ka/backend-project-lvl3#readme",
+  "devDependencies": {
+    "@jest/globals": "^27.1.1",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.24.2",
+    "eslint-plugin-jest": "^24.4.0",
+    "jest": "^27.1.1",
+    "jest-circus": "^27.1.1"
+  }
 }
