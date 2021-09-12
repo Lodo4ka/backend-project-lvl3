@@ -1,9 +1,10 @@
 import {
   it, expect, describe,
 } from '@jest/globals';
+import main from '../src/main';
 
 describe('main block', () => {
   it('first test', () => {
-    expect(1 + 1).toEqual(2);
+    expect(main()).toEqual(2);
   });
 });
