@@ -1,9 +1,0 @@
-name: 'Install node js'
-
-composites
-
-runs:
-  using: 'composite'
-  steps:
-    - name: Install dependencies
-      run: make install

@@ -12,10 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-node@master
-        with:
-          node-version: '14'
-      - uses: ./
+      - uses: ./.github/action.yml
       - name: Run linter
         run: make lint

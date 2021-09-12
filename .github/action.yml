@@ -1,0 +1,11 @@
+name: 'Install node js'
+
+runs:
+    using: 'composite'
+    steps:
+    - name: Use node js
+      uses: actions/setup-node@master
+      with:
+        node-version: '14'
+    - name: Install dependencies
+      run: make install
