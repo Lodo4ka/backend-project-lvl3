@@ -13,6 +13,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: actions/custom-actions@v1
+      - uses: actions/setup-node@master
+        with:
+          node-version: '14'
+      - uses: ./
       - name: Run linter
         run: make lint

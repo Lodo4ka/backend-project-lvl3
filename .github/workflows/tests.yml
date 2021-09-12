@@ -13,7 +13,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: actions/custom-actions@v1
+      - uses: actions/setup-node@master
+        with:
+          node-version: '14'
+      - uses: ./
       - name: Test & coverage
         uses: paambaati/codeclimate-action@v2.7.5
         env:
