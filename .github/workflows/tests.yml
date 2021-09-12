@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: ./.github/action.yml
+      - uses: ./
       - name: Test & coverage
         uses: paambaati/codeclimate-action@v2.7.5
         env:

@@ -13,6 +13,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: ./.github/action.yml
+      - uses: ./
       - name: Run linter
         run: make lint
