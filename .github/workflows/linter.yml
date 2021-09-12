@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@master
       - uses: ./.github/action.yml
       - name: Run linter
         run: make lint
