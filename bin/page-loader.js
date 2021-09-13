@@ -1,5 +1,7 @@
+#!/usr/bin/env node
+
 import commander from 'commander';
-import downloadPage from '../src/index';
+import downloadPage from '../src/index.js';
 
 commander
   .description('download all sources from source page')
