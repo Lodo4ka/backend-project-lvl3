@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import createHTMLName from './createHTMLName.js';
 import createDirectoryName from './createDirectoryName.js';
-import downloadFiles from './downloadFiles';
+import downloadFiles from './downloadFiles.js';
 
 export default function downloadPage(url, dirPath = process.cwd()) {
   const fileName = createHTMLName(url);

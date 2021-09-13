@@ -1,9 +1,9 @@
 import * as fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
-import createFileName from './createFileName';
-import checkOwnDomain from './checkOwnDomain';
-import getExtName from './getExtName';
+import createFileName from './createFileName.js';
+import checkOwnDomain from './checkOwnDomain.js';
+import getExtName from './getExtName.js';
 
 export default async function downloadFiles($, assetName, url, directoryPathToSave, dirToSaveName) {
   const attrFile = assetName === 'link' ? 'href' : 'src';
