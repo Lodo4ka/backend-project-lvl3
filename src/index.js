@@ -13,7 +13,7 @@ export default function downloadPage(url, dirPath = process.cwd()) {
   const filePath = path.join(dirPath, fileName);
   const directoryPath = path.join(dirPath, dirName);
   let $ = null;
-  fs.mkdir(directoryPath)
+  return fs.mkdir(directoryPath, { recursive: true })
     .then(() => axios(url))
     .then(({ data }) => {
       $ = cheerio.load(data);

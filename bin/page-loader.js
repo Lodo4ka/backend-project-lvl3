@@ -11,12 +11,13 @@ commander
   .action(async (url) => {
     const opts = commander.opts();
     const dirPath = opts.output;
-    try {
-      const { filepath } = await downloadPage(url, dirPath);
-      console.log(filepath);
-    } catch (error) {
-      console.error(error.message);
-      process.exit(1);
-    }
+    downloadPage(url, dirPath)
+      .then(({ filepath }) => {
+        console.log(filepath);
+      }).catch((err) => {
+        console.error(err.message);
+        console.log(err);
+        process.exit(1);
+      });
   })
   .parse(process.argv);
