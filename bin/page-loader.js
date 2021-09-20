@@ -16,7 +16,6 @@ commander
         console.log(filepath);
       }).catch((err) => {
         console.error(err.message);
-        console.log(err);
         process.exit(1);
       });
   })
