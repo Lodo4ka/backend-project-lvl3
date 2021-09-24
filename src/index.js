@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
+import Listr from 'listr';
 import ParserDOM from './parserDOM.js';
 import createHTMLName from './createHTMLName.js';
 import createDirectoryName from './createDirectoryName.js';
@@ -16,16 +17,20 @@ export default function downloadPage(url, dirPath = process.cwd()) {
     .then(({ data }) => {
       ParserDOM.parse(data);
       const assets = [
-        { name: 'img', attribute: 'src' },
-        { name: 'script', attribute: 'src' },
-        { name: 'link', attribute: 'href' },
+        { name: 'img', label: 'picture', attribute: 'src' },
+        { name: 'script', label: 'javascript', attribute: 'src' },
+        { name: 'link', label: 'css', attribute: 'href' },
       ];
-      return Promise
-        .all(assets.map((asset) => downloadFiles(asset, url, directoryPath, dirName)));
+      return new Listr(assets
+        .map((asset) => ({ title: `Download ${asset.label}`, task: () => downloadFiles(asset, url, directoryPath, dirName) })),
+      { concurrent: true }).run();
     })
-    .then(() => {
-      const html = ParserDOM.getHTML();
-      return fs.writeFile(filePath, html);
-    })
+    .then(() => new Listr([{
+      title: 'Download html',
+      task: () => {
+        const html = ParserDOM.getHTML();
+        return fs.writeFile(filePath, html);
+      },
+    }]).run())
     .then(() => ({ filepath: filePath }));
 }
