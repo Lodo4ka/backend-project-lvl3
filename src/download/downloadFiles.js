@@ -1,13 +1,22 @@
 import * as fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
-import createFileName from '../createFileName.js';
 import ParserDOM from '../parserDOM.js';
-import checkOwnDomain from '../checkOwnDomain.js';
 
-const getExtName = (url) => {
-  const extName = path.parse(url).ext.replace(/\./g, '');
-  return extName === '' ? 'html' : extName;
+const createFileName = (urlPath, urlHost) => {
+  const { ext } = path.parse(urlPath);
+  const { pathname } = new URL(urlPath);
+  const { host } = new URL(urlHost);
+  const regexNonCharacter = new RegExp('\\W');
+  const fileStrs = `${host}${pathname}`.split(regexNonCharacter);
+  if (ext === '') return `${fileStrs.join('-')}.html`;
+  return `${fileStrs.slice(0, -1).join('-')}${ext}`;
+};
+
+const checkOwnDomain = (url, urlHost) => {
+  const { hostname: currentHost } = new URL(url);
+  const { hostname: pageHost } = new URL(urlHost);
+  return currentHost === pageHost;
 };
 
 export default function downloadFiles(asset, urlSource, pathToSave, directoryName) {
@@ -28,7 +37,6 @@ export default function downloadFiles(asset, urlSource, pathToSave, directoryNam
       .map(({ config: { url: urlBlob } }) => createFileName(
         urlBlob,
         urlSource,
-        getExtName(urlBlob),
       ));
     const destinationPaths = fileNames.map((name) => path.join(pathToSave, name));
     return Promise.all(blobs
