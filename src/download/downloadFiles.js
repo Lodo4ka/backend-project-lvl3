@@ -4,7 +4,11 @@ import axios from 'axios';
 import createFileName from '../createFileName.js';
 import ParserDOM from '../parserDOM.js';
 import checkOwnDomain from '../checkOwnDomain.js';
-import getExtName from '../getExtName.js';
+
+const getExtName = (url) => {
+  const extName = path.parse(url).ext.replace(/\./g, '');
+  return extName === '' ? 'html' : extName;
+};
 
 export default function downloadFiles(asset, urlSource, pathToSave, directoryName) {
   const assets = ParserDOM.findElements(asset.name).filter((_, elem) => {
