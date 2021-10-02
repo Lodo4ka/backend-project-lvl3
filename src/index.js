@@ -1,10 +1,9 @@
 import * as fs from 'fs/promises';
+import cheerio from 'cheerio';
 import path from 'path';
 import axios from 'axios';
 import Listr from 'listr';
-import ParserDOM from './parserDOM.js';
-import createHTMLName from './createHTMLName.js';
-import createDirectoryName from './createDirectoryName.js';
+import { nanoid } from 'nanoid';
 
 const createFileName = (urlPath, urlHost) => {
   const { ext } = path.parse(urlPath);
@@ -16,11 +15,33 @@ const createFileName = (urlPath, urlHost) => {
   return `${fileStrs.slice(0, -1).join('-')}${ext}`;
 };
 
+function splitByNonCharacters(str) {
+  const regexNonCharacter = new RegExp('\\W');
+  return str.split(regexNonCharacter);
+}
+
 const checkOwnDomain = (url, urlHost) => {
   const { hostname: currentHost } = new URL(url);
   const { hostname: pageHost } = new URL(urlHost);
   return currentHost === pageHost;
 };
+
+function createHTMLName(htmlPath) {
+  const { hostname, pathname } = new URL(htmlPath);
+  const fileStrs = splitByNonCharacters(`${hostname}${pathname}`);
+  const fileName = (fileStrs[fileStrs.length - 1] === '' ? fileStrs.slice(0, -1) : fileStrs)
+    .join('-');
+  return `${fileName}.html`;
+}
+
+function createDirectoryName(directoryPath) {
+  const { hostname, pathname } = new URL(directoryPath);
+  const regexNonCharacter = new RegExp('\\W');
+  const fileStrs = `${hostname}${pathname}`.split(regexNonCharacter);
+  const fileName = (fileStrs[fileStrs.length - 1] === '' ? fileStrs.slice(0, -1) : fileStrs)
+    .join('-');
+  return `${fileName}_files`;
+}
 
 export default function downloadPage(url, dirPath = process.cwd()) {
   const fileName = createHTMLName(url);
@@ -28,76 +49,103 @@ export default function downloadPage(url, dirPath = process.cwd()) {
   const filePath = path.join(dirPath, fileName);
   const directoryPath = path.join(dirPath, dirName);
   let domNodeAssets = [];
+  let $ = {};
   const assets = [
-    { name: 'img', label: 'picture', attribute: 'src' },
-    { name: 'script', label: 'javascript', attribute: 'src' },
-    { name: 'link', label: 'css', attribute: 'href' },
+    {
+      name: 'img', label: 'picture', attribute: 'src', extensions: ['.png', '.jpg', '.svg'],
+    },
+    {
+      name: 'script', label: 'javascript', attribute: 'src', extensions: ['.js'],
+    },
+    {
+      name: 'link', label: 'css', attribute: 'href', extensions: ['.css', '.html'],
+    },
   ];
   return fs.mkdir(directoryPath)
     .then(() => {
+      let html = '';
       const fetchUrlTask = new Listr([{
         title: `Fetch ${url}`,
-        task: () => axios(url),
+        task: () => axios(url).then(({ data }) => {
+          html = data;
+        }),
       }]);
-      return fetchUrlTask.run();
+      return fetchUrlTask.run().then(() => html);
     })
-    .then(({ data }) => {
-      ParserDOM.parse(data);
+    .then((html) => {
+      $ = cheerio.load(html);
+      let blobs = [];
       const assetTasks = assets
         .map((asset) => ({
           title: `Download ${asset.label} from source url`,
           task: () => {
-            domNodeAssets = ParserDOM.findElements(asset.name).filter((_, elem) => {
-              const attributeValue = ParserDOM.findElements(elem).attr(asset.attribute);
+            const domNodes = $(asset.name).filter((_, elem) => {
+              const attributeValue = $(elem).attr(asset.attribute);
               const urlArg = new URL(attributeValue, url);
               return checkOwnDomain(urlArg, url);
-            });
-            const assetUrls = domNodeAssets
-              .map((_, element) => ParserDOM.findElements(element).attr(asset.attribute))
+            })
+              .map((_, element) => {
+                const id = nanoid();
+                return { id, ...element };
+              });
+            const assetUrls = domNodes
+              .map((_, element) => $(element).attr(asset.attribute))
               .toArray()
               .map((elem) => new URL(elem, url).toString());
             return Promise.all(
               assetUrls
                 .map((assetUrl) => axios(assetUrl, { responseType: 'arraybuffer' })),
-            );
+            ).then((urlBlobs) => {
+              const urlBlobsWithId = urlBlobs
+                .map((blob, index) => ({ id: domNodes[index].id, ...blob }));
+              blobs = [...blobs, ...urlBlobsWithId];
+              domNodeAssets = [...domNodeAssets, ...domNodes];
+            });
           },
         }));
-      const assetListr = new Listr(assetTasks,
-        { concurrent: true });
-      return assetListr.run();
+      return new Listr(assetTasks, { concurrent: true }).run().then(() => blobs);
     })
     .then((blobs) => {
-      const downloadTasks = new Listr(
-        blobs.map(({ config: { url: urlBlob }, data }, index) => ({
-          title: `Save ${assets[index].label} to directory ${directoryPath}`,
-          tasks: () => {
+      let fileNames = [];
+      const downloadTasks = blobs.map(({ config: { url: urlBlob }, data, id }) => {
+        const { ext } = path.parse(urlBlob);
+        const label = ext.split('.')[1];
+        const title = `Save ${label || 'html'} to directory ${directoryPath}`;
+        return {
+          title,
+          task: () => {
             const assetName = createFileName(urlBlob, url);
             const destinationPath = path.join(directoryPath, assetName);
-            return fs.writeFile(destinationPath, data).then(() => assetName);
+            return fs.writeFile(destinationPath, data).then(() => {
+              fileNames = [...fileNames, { id, assetName }];
+            });
           },
-        })),
-        { concurrent: true },
-      );
-      return downloadTasks.run();
+        };
+      });
+      return new Listr(downloadTasks, { concurrent: true }).run().then(() => fileNames);
     })
     .then((fileNames) => {
-      const updatePathTasks = new Listr(
-        fileNames.map((name, index) => ({
-          title: `Update path source in ${assets[index].label}`,
+      const updatePathTasks = fileNames.map(({ id, assetName }) => {
+        const { ext } = path.parse(assetName);
+        const label = ext.split('.')[1];
+        const title = `Update path source in ${label}`;
+        return {
+          title,
           task: () => {
-            const updatedPath = path.join(dirName, name);
-            ParserDOM.findElements(domNodeAssets[index]).attr(assets[index].attribute, updatedPath);
+            const updatedPath = path.join(dirName, assetName);
+            const tag = domNodeAssets.find((domAsset) => domAsset.id === id);
+            const { attribute } = assets.find((asset) => asset.extensions.includes(ext));
+            $(tag).attr(attribute, updatedPath);
           },
-        })),
-        { concurrent: true },
-      );
-      updatePathTasks.run();
+        };
+      });
+      return new Listr(updatePathTasks, { concurrent: true }).run();
     })
     .then(() => {
       const htmlListr = new Listr([{
         title: `Save main html to ${filePath}`,
         task: () => {
-          const html = ParserDOM.getHTML();
+          const html = $.html();
           return fs.writeFile(filePath, html);
         }
         ,
