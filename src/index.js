@@ -4,49 +4,23 @@ import path from 'path';
 import axios from 'axios';
 import Listr from 'listr';
 import { nanoid } from 'nanoid';
+import 'axios-debug-log';
+import debug from 'debug';
 
-const createFileName = (urlPath, urlHost) => {
-  const { ext } = path.parse(urlPath);
-  const { pathname } = new URL(urlPath);
-  const { host } = new URL(urlHost);
+const log = debug('page-loader');
+
+const createFileName = (url, extension) => {
+  const { hostname, pathname } = new URL(url);
   const regexNonCharacter = new RegExp('\\W');
-  const fileStrs = `${host}${pathname}`.split(regexNonCharacter);
-  if (ext === '') return `${fileStrs.join('-')}.html`;
+  const destinitionPath = path.join(hostname, pathname);
+  const { ext } = path.parse(destinitionPath);
+  const fileStrs = destinitionPath.split(regexNonCharacter);
+  if (ext === '') return `${fileStrs.join('-')}${extension}`;
   return `${fileStrs.slice(0, -1).join('-')}${ext}`;
 };
 
-function splitByNonCharacters(str) {
-  const regexNonCharacter = new RegExp('\\W');
-  return str.split(regexNonCharacter);
-}
-
-const checkOwnDomain = (url, urlHost) => {
-  const { hostname: currentHost } = new URL(url);
-  const { hostname: pageHost } = new URL(urlHost);
-  return currentHost === pageHost;
-};
-
-function createHTMLName(htmlPath) {
-  const { hostname, pathname } = new URL(htmlPath);
-  const fileStrs = splitByNonCharacters(`${hostname}${pathname}`);
-  const fileName = (fileStrs[fileStrs.length - 1] === '' ? fileStrs.slice(0, -1) : fileStrs)
-    .join('-');
-  return `${fileName}.html`;
-}
-
-function createDirectoryName(directoryPath) {
-  const { hostname, pathname } = new URL(directoryPath);
-  const regexNonCharacter = new RegExp('\\W');
-  const fileStrs = `${hostname}${pathname}`.split(regexNonCharacter);
-  const fileName = (fileStrs[fileStrs.length - 1] === '' ? fileStrs.slice(0, -1) : fileStrs)
-    .join('-');
-  return `${fileName}_files`;
-}
-
 export default function downloadPage(url, dirPath = process.cwd()) {
-  const fileName = createHTMLName(url);
-  const dirName = createDirectoryName(url);
-  const filePath = path.join(dirPath, fileName);
+  const dirName = createFileName(url, '_files');
   const directoryPath = path.join(dirPath, dirName);
   let domNodeAssets = [];
   let $ = {};
@@ -82,7 +56,9 @@ export default function downloadPage(url, dirPath = process.cwd()) {
             const domNodes = $(asset.name).filter((_, elem) => {
               const attributeValue = $(elem).attr(asset.attribute);
               const urlArg = new URL(attributeValue, url);
-              return checkOwnDomain(urlArg, url);
+              const { hostname: currentHost } = new URL(urlArg);
+              const { hostname: pageHost } = new URL(url);
+              return currentHost === pageHost;
             })
               .map((_, element) => {
                 const id = nanoid();
@@ -109,12 +85,13 @@ export default function downloadPage(url, dirPath = process.cwd()) {
       let fileNames = [];
       const downloadTasks = blobs.map(({ config: { url: urlBlob }, data, id }) => {
         const { ext } = path.parse(urlBlob);
-        const label = ext.split('.')[1];
-        const title = `Save ${label || 'html'} to directory ${directoryPath}`;
+        const blobExt = ext || '.html';
+        const label = blobExt.split('.')[1];
+        const title = `Save ${label} to directory ${directoryPath}`;
         return {
           title,
           task: () => {
-            const assetName = createFileName(urlBlob, url);
+            const assetName = createFileName(urlBlob, blobExt);
             const destinationPath = path.join(directoryPath, assetName);
             return fs.writeFile(destinationPath, data).then(() => {
               fileNames = [...fileNames, { id, assetName }];
@@ -127,14 +104,15 @@ export default function downloadPage(url, dirPath = process.cwd()) {
     .then((fileNames) => {
       const updatePathTasks = fileNames.map(({ id, assetName }) => {
         const { ext } = path.parse(assetName);
-        const label = ext.split('.')[1];
+        const assetExt = ext || '.html';
+        const label = assetExt.split('.')[1];
         const title = `Update path source in ${label}`;
         return {
           title,
           task: () => {
             const updatedPath = path.join(dirName, assetName);
             const tag = domNodeAssets.find((domAsset) => domAsset.id === id);
-            const { attribute } = assets.find((asset) => asset.extensions.includes(ext));
+            const { attribute } = assets.find((asset) => asset.extensions.includes(assetExt));
             $(tag).attr(attribute, updatedPath);
           },
         };
@@ -142,15 +120,16 @@ export default function downloadPage(url, dirPath = process.cwd()) {
       return new Listr(updatePathTasks, { concurrent: true }).run();
     })
     .then(() => {
+      const htmlName = createFileName(url, '.html');
+      const htmlMainPath = path.join(dirPath, htmlName);
       const htmlListr = new Listr([{
-        title: `Save main html to ${filePath}`,
+        title: `Save main html to ${htmlMainPath}`,
         task: () => {
-          const html = $.html();
-          return fs.writeFile(filePath, html);
-        }
-        ,
+          const htmlSource = $.html();
+          return fs.writeFile(htmlMainPath, htmlSource);
+        },
       }]);
-      return htmlListr.run();
+      return htmlListr.run().then(() => htmlMainPath);
     })
-    .then(() => ({ filepath: filePath }));
+    .then((htmlMainPath) => ({ filepath: htmlMainPath }));
 }
