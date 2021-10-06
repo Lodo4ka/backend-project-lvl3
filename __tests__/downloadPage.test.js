@@ -79,7 +79,7 @@ describe('download page and save in tmp directory', () => {
 
     it('download with file system errors ENOENT', () => {
       nock('https://site.com').get('/foo').reply(200);
-      return expect(downloadPage('https://site.com/foo', '<h1>hello</h1>')).rejects.toThrow('ENOENT');
+      return expect(downloadPage('https://site.com/foo', '/foo/bar')).rejects.toThrow('ENOENT');
     });
 
     it('access error', async () => {
