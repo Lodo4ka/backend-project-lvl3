@@ -70,7 +70,7 @@ export default function downloadPage(url, dirPath = process.cwd()) {
         }));
       return new Listr(assetTasks, { concurrent: true }).run().then(() => blobs);
     }))
-    .then((blobs) => fs.mkdir(directoryPath, { recursive: true }).then(() => blobs))
+    .then((blobs) => fs.mkdir(directoryPath).then(() => blobs))
     .then((blobs) => Promise.all(blobs.map(({ config: { url: urlBlob }, data, id }) => {
       const { ext } = path.parse(urlBlob);
       const blobExt = ext || '.html';
@@ -92,6 +92,5 @@ export default function downloadPage(url, dirPath = process.cwd()) {
     .then(() => {
       const htmlSource = $.html();
       return fs.writeFile(htmlMainPath, htmlSource);
-    })
-    .then(() => ({ filepath: htmlMainPath }));
+    });
 }
