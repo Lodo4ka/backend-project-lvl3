@@ -20,6 +20,8 @@ const createFileName = (url, extension) => {
 };
 
 export default function downloadPage(url, dirPath = process.cwd()) {
+  const htmlName = createFileName(url, '.html');
+  const htmlMainPath = path.join(dirPath, htmlName);
   const dirName = createFileName(url, '_files');
   const directoryPath = path.join(dirPath, dirName);
   let domNodeAssets = [];
@@ -35,18 +37,8 @@ export default function downloadPage(url, dirPath = process.cwd()) {
       name: 'link', label: 'css', attribute: 'href', extensions: ['.css', '.html'],
     },
   ];
-  return fs.mkdir(directoryPath)
-    .then(() => {
-      let html = '';
-      const fetchUrlTask = new Listr([{
-        title: `Fetch ${url}`,
-        task: () => axios(url).then(({ data }) => {
-          html = data;
-        }),
-      }]);
-      return fetchUrlTask.run().then(() => html);
-    })
-    .then((html) => {
+  return axios(url)
+    .then((({ data: html }) => {
       $ = cheerio.load(html);
       let blobs = [];
       const assetTasks = assets
@@ -80,56 +72,29 @@ export default function downloadPage(url, dirPath = process.cwd()) {
           },
         }));
       return new Listr(assetTasks, { concurrent: true }).run().then(() => blobs);
-    })
-    .then((blobs) => {
-      let fileNames = [];
-      const downloadTasks = blobs.map(({ config: { url: urlBlob }, data, id }) => {
-        const { ext } = path.parse(urlBlob);
-        const blobExt = ext || '.html';
-        const label = blobExt.split('.')[1];
-        const title = `Save ${label} to directory ${directoryPath}`;
-        return {
-          title,
-          task: () => {
-            const assetName = createFileName(urlBlob, blobExt);
-            const destinationPath = path.join(directoryPath, assetName);
-            return fs.writeFile(destinationPath, data).then(() => {
-              fileNames = [...fileNames, { id, assetName }];
-            });
-          },
-        };
-      });
-      return new Listr(downloadTasks, { concurrent: true }).run().then(() => fileNames);
-    })
+    }))
+    .then((blobs) => fs.mkdir(directoryPath, { recursive: true }).then(() => blobs))
+    .then((blobs) => Promise.all(blobs.map(({ config: { url: urlBlob }, data, id }) => {
+      const { ext } = path.parse(urlBlob);
+      const blobExt = ext || '.html';
+      const assetName = createFileName(urlBlob, blobExt);
+      const destinationPath = path.join(directoryPath, assetName);
+      return fs.writeFile(destinationPath, data).then(() => ({ id, assetName }));
+    })))
     .then((fileNames) => {
-      const updatePathTasks = fileNames.map(({ id, assetName }) => {
+      fileNames.forEach(({ id, assetName }) => {
         const { ext } = path.parse(assetName);
         const assetExt = ext || '.html';
-        const label = assetExt.split('.')[1];
-        const title = `Update path source in ${label}`;
-        return {
-          title,
-          task: () => {
-            const updatedPath = path.join(dirName, assetName);
-            const tag = domNodeAssets.find((domAsset) => domAsset.id === id);
-            const { attribute } = assets.find((asset) => asset.extensions.includes(assetExt));
-            $(tag).attr(attribute, updatedPath);
-          },
-        };
+        const updatedPath = path.join(dirName, assetName);
+        const tag = domNodeAssets.find((domAsset) => domAsset.id === id);
+        const { attribute } = assets.find((asset) => asset.extensions.includes(assetExt)) ?? {};
+        $(tag).attr(attribute, updatedPath);
       });
-      return new Listr(updatePathTasks, { concurrent: true }).run();
+      return Promise.resolve();
     })
     .then(() => {
-      const htmlName = createFileName(url, '.html');
-      const htmlMainPath = path.join(dirPath, htmlName);
-      const htmlListr = new Listr([{
-        title: `Save main html to ${htmlMainPath}`,
-        task: () => {
-          const htmlSource = $.html();
-          return fs.writeFile(htmlMainPath, htmlSource);
-        },
-      }]);
-      return htmlListr.run().then(() => htmlMainPath);
+      const htmlSource = $.html();
+      return fs.writeFile(htmlMainPath, htmlSource);
     })
-    .then((htmlMainPath) => ({ filepath: htmlMainPath }));
+    .then(() => ({ filepath: htmlMainPath }));
 }
