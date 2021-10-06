@@ -1,13 +1,10 @@
 import * as fs from 'fs/promises';
 import cheerio from 'cheerio';
 import path from 'path';
-import axios from 'axios';
 import Listr from 'listr';
 import { nanoid } from 'nanoid';
-import 'axios-debug-log';
-import debug from 'debug';
-
-const log = debug('page-loader');
+import './env.js';
+import axios from './httpClient.js';
 
 const createFileName = (url, extension) => {
   const { hostname, pathname } = new URL(url);

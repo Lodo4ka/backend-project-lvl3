@@ -3,11 +3,13 @@ import nock from 'nock';
 import os from 'os';
 import path from 'path';
 import { existsSync } from 'fs';
-
+import axios from '../src/httpClient.js';
 import downloadPage from '../src/index';
 
 const readFile = async (pathName) => fs.readFile(pathName, 'utf-8');
 const readFixture = async (pathFixture) => readFile(path.join(__dirname, '..', '__fixtures__', pathFixture));
+
+axios.defaults.adapter = require('axios/lib/adapters/http');
 
 describe('download page and save in tmp directory', () => {
   beforeAll(() => {
