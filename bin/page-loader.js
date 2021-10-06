@@ -12,8 +12,8 @@ commander
     const opts = commander.opts();
     const dirPath = opts.output;
     downloadPage(url, dirPath)
-      .then(({ filepath }) => {
-        console.log(filepath);
+      .then(() => {
+        console.log('page was downloaded');
       }).catch((err) => {
         console.error(err.message);
         process.exit(1);
