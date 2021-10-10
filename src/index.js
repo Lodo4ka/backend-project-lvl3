@@ -2,9 +2,9 @@ import * as fs from 'fs/promises';
 import cheerio from 'cheerio';
 import path from 'path';
 import Listr from 'listr';
-import debug from 'debug';
 import { nanoid } from 'nanoid';
 import './env.js';
+import debug from 'debug';
 import axios from './httpClient.js';
 
 const log = debug('page-loader');
@@ -37,7 +37,7 @@ export default function downloadPage(url, dirPath = process.cwd()) {
       name: 'link', label: 'css', attribute: 'href', extensions: ['.css', '.html'],
     },
   ];
-  log('1');
+  log('Fetch from url ', url);
   return axios(url)
     .then((({ data: html }) => {
       $ = cheerio.load(html);
@@ -74,11 +74,15 @@ export default function downloadPage(url, dirPath = process.cwd()) {
         }));
       return new Listr(assetTasks, { concurrent: true }).run().then(() => blobs);
     }))
-    .then((blobs) => fs.mkdir(directoryPath).then(() => blobs))
+    .then((blobs) => {
+      log('Сreate directory for assets', directoryPath);
+      return fs.mkdir(directoryPath).then(() => blobs);
+    })
     .then((blobs) => Promise.all(blobs.map(({ config: { url: urlBlob }, data, id }) => {
       const { ext } = path.parse(urlBlob);
       const blobExt = ext || '.html';
       const assetName = createFileName(urlBlob, blobExt);
+      log(`Save ${assetName} to`, directoryPath);
       const destinationPath = path.join(directoryPath, assetName);
       return fs.writeFile(destinationPath, data).then(() => ({ id, assetName }));
     })))
@@ -89,12 +93,15 @@ export default function downloadPage(url, dirPath = process.cwd()) {
         const updatedPath = path.join(dirName, assetName);
         const tag = domNodeAssets.find((domAsset) => domAsset.id === id);
         const { attribute } = assets.find((asset) => asset.extensions.includes(assetExt)) ?? {};
+        if (!attribute) return;
+        log(`Update attribute ${attribute} on`, updatedPath);
         $(tag).attr(attribute, updatedPath);
       });
       return Promise.resolve();
     })
     .then(() => {
       const htmlSource = $.html();
+      log('Save main html to ', htmlMainPath);
       return fs.writeFile(htmlMainPath, htmlSource);
     });
 }
