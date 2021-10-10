@@ -2,9 +2,12 @@ import * as fs from 'fs/promises';
 import cheerio from 'cheerio';
 import path from 'path';
 import Listr from 'listr';
+import debug from 'debug';
 import { nanoid } from 'nanoid';
 import './env.js';
 import axios from './httpClient.js';
+
+const log = debug('page-loader');
 
 const createFileName = (url, extension) => {
   const { hostname, pathname } = new URL(url);
@@ -34,6 +37,7 @@ export default function downloadPage(url, dirPath = process.cwd()) {
       name: 'link', label: 'css', attribute: 'href', extensions: ['.css', '.html'],
     },
   ];
+  log('1');
   return axios(url)
     .then((({ data: html }) => {
       $ = cheerio.load(html);
